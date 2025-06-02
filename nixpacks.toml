@@ -1,0 +1,20 @@
+[phases.setup]
+nixPkgs = ['nodejs-18.x', 'python3']
+
+[phases.install]
+cmds = [
+  "cd frontend && npm install",
+  "cd .."
+]
+
+[phases.build]
+cmds = [
+  "cd frontend && npm run build",
+  "cd .."
+]
+
+[start]
+cmd = "cd frontend && npm start"
+
+[processes]
+web = "cd frontend && npm start"
