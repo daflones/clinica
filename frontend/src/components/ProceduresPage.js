@@ -46,7 +46,6 @@ const ProceduresPage = () => {
     price: 0,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
   // Fechar o Snackbar
   const handleCloseSnackbar = (event, reason) => {
@@ -70,9 +69,7 @@ const ProceduresPage = () => {
       if (fetchError) throw fetchError;
 
       setProcedures(data || []);
-      setError(null);
     } catch (error) {
-      setError('Erro ao carregar procedimentos');
       setSnackbar({
         open: true,
         message: `Erro ao carregar procedimentos: ${error.message}`,
