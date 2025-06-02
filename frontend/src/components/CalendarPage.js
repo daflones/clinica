@@ -53,85 +53,86 @@ const CalendarPage = () => {
   // Fetch data from Supabase
   const fetchData = useCallback(async () => {
     if (!supabase) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Fetch appointments
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        .select(`
+        .select(
+          `
           *,
           client:clients!appointments_client_id_fkey (id, name, email, phone),
           procedures (id, name, duration, price)
-        `)
+        `
+        )
         .order('date', { ascending: true });
-        
+
       if (appointmentsError) throw appointmentsError;
-      
+
       // Fetch clients
       const { data: clientsData, error: clientsError } = await supabase
         .from('clients')
         .select('*')
         .order('name', { ascending: true });
-        
+
       if (clientsError) throw clientsError;
-      
+
       // Fetch procedures
       const { data: proceduresData, error: proceduresError } = await supabase
         .from('procedures')
         .select('*')
         .order('name', { ascending: true });
-        
+
       if (proceduresError) throw proceduresError;
-      
+
       setAppointments(appointmentsData || []);
       setClients(clientsData || []);
       setProcedures(proceduresData || []);
-      
     } catch (error) {
       setError('Error loading data: ' + error.message);
     } finally {
       setLoading(false);
     }
   }, [supabase]);
-  
+
   // Load initial data
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-  
+
   // Navigation handlers
   const handlePrevDay = () => {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() - 1);
     setDate(newDate);
   };
-  
+
   const handleNextDay = () => {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() + 1);
     setDate(newDate);
   };
-  
+
   const handleToday = () => {
     setDate(new Date());
   };
-  
+
   // View change handler
   const handleViewChange = (event, newView) => {
     setView(newView);
   };
-  
+
   // Form input change handler
-  const handleInputChange = (e) => {
+  const handleInputChange = e => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
-  
+
   // Open appointment dialog
   const handleOpenDialog = (appointment = null) => {
     if (appointment) {
@@ -155,56 +156,53 @@ const CalendarPage = () => {
     }
     setOpenDialog(true);
   };
-  
+
   // Close dialog
   const handleCloseDialog = () => {
     setOpenDialog(false);
   };
-  
+
   // Save appointment
-  const handleSaveAppointment = async (e) => {
+  const handleSaveAppointment = async e => {
     e.preventDefault();
-    
+
     if (!supabase) return;
-    
+
     try {
       setLoading(true);
-      
+
       const appointmentData = {
         ...formData,
         date: new Date(formData.date).toISOString(),
         updated_at: new Date().toISOString(),
       };
-      
+
       if (selectedAppointment) {
         // Update existing appointment
         const { error } = await supabase
           .from('appointments')
           .update(appointmentData)
           .eq('id', selectedAppointment.id);
-          
+
         if (error) throw error;
       } else {
         // Create new appointment
         appointmentData.created_at = new Date().toISOString();
-        const { error } = await supabase
-          .from('appointments')
-          .insert([appointmentData]);
-          
+        const { error } = await supabase.from('appointments').insert([appointmentData]);
+
         if (error) throw error;
       }
-      
+
       // Reload data
       await fetchData();
       handleCloseDialog();
-      
     } catch (error) {
       setError('Error saving appointment: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
-  
+
   // Render view based on selected view type
   const renderView = () => {
     switch (view) {
@@ -218,7 +216,7 @@ const CalendarPage = () => {
         return renderWeekView();
     }
   };
-  
+
   // Render day view
   const renderDayView = () => {
     const dayAppointments = appointments.filter(appointment => {
@@ -236,7 +234,7 @@ const CalendarPage = () => {
           {date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </Typography>
         {dayAppointments.length > 0 ? (
-          dayAppointments.map((appointment) => (
+          dayAppointments.map(appointment => (
             <Card key={appointment.id} sx={{ p: 2, mb: 2 }}>
               <Typography variant="subtitle1">
                 {appointment.time} - {appointment.client?.name}
@@ -250,10 +248,7 @@ const CalendarPage = () => {
                 </Typography>
               )}
               <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                  size="small"
-                  onClick={() => handleOpenDialog(appointment)}
-                >
+                <Button size="small" onClick={() => handleOpenDialog(appointment)}>
                   Edit
                 </Button>
               </Box>
@@ -265,19 +260,19 @@ const CalendarPage = () => {
       </Paper>
     );
   };
-  
+
   // Render week view
   const renderWeekView = () => {
     const startOfWeek = new Date(date);
     startOfWeek.setDate(date.getDate() - date.getDay());
-    
+
     const days = [];
     for (let i = 0; i < 7; i++) {
       const day = new Date(startOfWeek);
       day.setDate(startOfWeek.getDate() + i);
       days.push(day);
     }
-    
+
     return (
       <Paper sx={{ p: 2, mt: 2 }}>
         <Box display="flex" justifyContent="space-between" mb={2}>
@@ -286,13 +281,11 @@ const CalendarPage = () => {
               <Typography variant="subtitle2">
                 {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
               </Typography>
-              <Typography variant="body2">
-                {day.getDate()}
-              </Typography>
+              <Typography variant="body2">{day.getDate()}</Typography>
             </Box>
           ))}
         </Box>
-        
+
         <Box display="flex" flexDirection="column" gap={2}>
           {days.map((day, dayIndex) => {
             const dayAppointments = appointments.filter(appointment => {
@@ -303,7 +296,7 @@ const CalendarPage = () => {
                 appointmentDate.getFullYear() === day.getFullYear()
               );
             });
-            
+
             return (
               <Card key={dayIndex} sx={{ p: 1 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -311,15 +304,15 @@ const CalendarPage = () => {
                 </Typography>
                 {dayAppointments.length > 0 ? (
                   dayAppointments.map(appointment => (
-                    <Box 
-                      key={appointment.id} 
-                      sx={{ 
-                        p: 1, 
-                        mb: 1, 
+                    <Box
+                      key={appointment.id}
+                      sx={{
+                        p: 1,
+                        mb: 1,
                         borderLeft: '3px solid',
                         borderColor: 'primary.main',
                         '&:hover': { bgcolor: 'action.hover' },
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                       }}
                       onClick={() => handleOpenDialog(appointment)}
                     >
@@ -343,25 +336,25 @@ const CalendarPage = () => {
       </Paper>
     );
   };
-  
+
   // Render month view
   const renderMonthView = () => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    
+
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
+
     const weeks = [];
     let week = [];
-    
+
     // Fill in empty days at the start of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       week.push(null);
     }
-    
+
     // Fill in the days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(year, month, day);
@@ -373,19 +366,19 @@ const CalendarPage = () => {
           appointmentDate.getFullYear() === currentDate.getFullYear()
         );
       });
-      
+
       week.push({
         date: currentDate,
         day,
         hasAppointments: dayAppointments.length > 0,
       });
-      
+
       if (week.length === 7) {
         weeks.push(week);
         week = [];
       }
     }
-    
+
     // Fill in remaining days of the last week
     if (week.length > 0) {
       while (week.length < 7) {
@@ -393,41 +386,42 @@ const CalendarPage = () => {
       }
       weeks.push(week);
     }
-    
+
     return (
       <Paper sx={{ p: 2, mt: 2 }}>
         <Typography variant="h6" gutterBottom>
           {date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </Typography>
-        
+
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, mb: 1 }}>
-          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
+          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
             <Typography key={day} variant="subtitle2" textAlign="center">
               {day}
             </Typography>
           ))}
         </Box>
-        
+
         {weeks.map((week, weekIndex) => (
-          <Box 
-            key={weekIndex} 
-            sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(7, 1fr)', 
+          <Box
+            key={weekIndex}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, 1fr)',
               gap: 1,
-              mb: 1
+              mb: 1,
             }}
           >
-            {week.map((day, dayIndex) => (
+            {week.map((day, dayIndex) =>
               day ? (
-                <Card 
+                <Card
                   key={dayIndex}
                   sx={{
                     p: 1,
                     minHeight: 100,
-                    bgcolor: day.date.toDateString() === new Date().toDateString() 
-                      ? 'action.hover' 
-                      : 'background.paper',
+                    bgcolor:
+                      day.date.toDateString() === new Date().toDateString()
+                        ? 'action.hover'
+                        : 'background.paper',
                     cursor: 'pointer',
                     '&:hover': {
                       bgcolor: 'action.hover',
@@ -438,11 +432,9 @@ const CalendarPage = () => {
                     setView('day');
                   }}
                 >
-                  <Typography variant="body2">
-                    {day.day}
-                  </Typography>
+                  <Typography variant="body2">{day.day}</Typography>
                   {day.hasAppointments && (
-                    <Box 
+                    <Box
                       sx={{
                         width: 8,
                         height: 8,
@@ -456,20 +448,18 @@ const CalendarPage = () => {
               ) : (
                 <div key={dayIndex} />
               )
-            ))}
+            )}
           </Box>
         ))}
       </Paper>
     );
   };
-  
+
   // Render appointment form
   const renderAppointmentForm = () => (
     <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
       <form onSubmit={handleSaveAppointment}>
-        <DialogTitle>
-          {selectedAppointment ? 'Edit Appointment' : 'New Appointment'}
-        </DialogTitle>
+        <DialogTitle>{selectedAppointment ? 'Edit Appointment' : 'New Appointment'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -481,7 +471,7 @@ const CalendarPage = () => {
                   onChange={handleInputChange}
                   label="Client"
                 >
-                  {clients.map((client) => (
+                  {clients.map(client => (
                     <MenuItem key={client.id} value={client.id}>
                       {client.name}
                     </MenuItem>
@@ -498,7 +488,7 @@ const CalendarPage = () => {
                   onChange={handleInputChange}
                   label="Procedure"
                 >
-                  {procedures.map((procedure) => (
+                  {procedures.map(procedure => (
                     <MenuItem key={procedure.id} value={procedure.id}>
                       {procedure.name}
                     </MenuItem>
@@ -557,19 +547,14 @@ const CalendarPage = () => {
           <Button onClick={handleCloseDialog} disabled={loading}>
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary" 
-            disabled={loading}
-          >
+          <Button type="submit" variant="contained" color="primary" disabled={loading}>
             {loading ? <CircularProgress size={24} /> : 'Save'}
           </Button>
         </DialogActions>
       </form>
     </Dialog>
   );
-  
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
@@ -577,7 +562,7 @@ const CalendarPage = () => {
       </Box>
     );
   }
-  
+
   if (error) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
@@ -585,20 +570,16 @@ const CalendarPage = () => {
       </Alert>
     );
   }
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Calendar</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
           New Appointment
         </Button>
       </Box>
-      
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Box display="flex" alignItems="center">
           <IconButton onClick={handlePrevDay}>
@@ -613,21 +594,21 @@ const CalendarPage = () => {
           <Typography variant="h6" component="span" sx={{ ml: 2 }}>
             {view === 'month'
               ? date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-              : date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              : date.toLocaleDateString('pt-BR', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
           </Typography>
         </Box>
-        
-        <Tabs
-          value={view}
-          onChange={handleViewChange}
-          aria-label="calendar view"
-        >
+
+        <Tabs value={view} onChange={handleViewChange} aria-label="calendar view">
           <Tab value="day" label="Day" icon={<CalendarTodayIcon />} />
           <Tab value="week" label="Week" icon={<ViewWeekIcon />} />
           <Tab value="month" label="Month" icon={<ViewModuleIcon />} />
         </Tabs>
       </Box>
-      
+
       {renderView()}
       {renderAppointmentForm()}
     </Box>
