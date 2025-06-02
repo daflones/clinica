@@ -46,23 +46,33 @@ const ProceduresPage = () => {
     price: 0,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Fechar o Snackbar
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
   // Buscar procedimentos do Supabase
-  const fetchProcedures = async () => {
+  const fetchProcedures = React.useCallback(async () => {
     if (!supabase) return;
 
-    setLoading(true);
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      const { data, error: fetchError } = await supabase
         .from('procedures')
         .select('*')
         .order('name', { ascending: true });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
       setProcedures(data || []);
+      setError(null);
     } catch (error) {
-      console.error('Erro ao buscar procedimentos:', error);
+      setError('Erro ao carregar procedimentos');
       setSnackbar({
         open: true,
         message: `Erro ao carregar procedimentos: ${error.message}`,
@@ -71,11 +81,11 @@ const ProceduresPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchProcedures();
-  }, [supabase]);
+  }, [fetchProcedures]);
 
   // Filtrar procedimentos com base no termo de pesquisa
   const filteredProcedures = procedures.filter(procedure => {
@@ -131,7 +141,6 @@ const ProceduresPage = () => {
           severity: 'success',
         });
       } catch (error) {
-        console.error('Erro ao excluir procedimento:', error);
         setSnackbar({
           open: true,
           message: 'Erro ao excluir procedimento. Tente novamente.',
@@ -217,7 +226,6 @@ const ProceduresPage = () => {
       }
       handleCloseDialog();
     } catch (error) {
-      console.error('Erro ao salvar procedimento:', error);
       setSnackbar({
         open: true,
         message: 'Erro ao salvar procedimento. Tente novamente.',
