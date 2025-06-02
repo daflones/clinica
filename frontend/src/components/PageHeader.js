@@ -1,10 +1,5 @@
 import React from 'react';
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  IconButton 
-} from '@mui/material';
+import { Box, Typography, Button, IconButton } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,11 +30,11 @@ const PageHeader = ({
     >
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
         {showBackButton && (
-          <IconButton 
-            onClick={() => navigate(-1)} 
-            sx={{ 
-              mr: 1.5, 
-              color: 'text.secondary' 
+          <IconButton
+            onClick={() => navigate(-1)}
+            sx={{
+              mr: 1.5,
+              color: 'text.secondary',
             }}
           >
             <ArrowBack />

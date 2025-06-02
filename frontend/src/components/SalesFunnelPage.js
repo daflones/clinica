@@ -31,12 +31,12 @@ const SalesFunnelPage = () => {
 
   // Dados do funil de vendas
   const funnelStages = [
-    { 
-      id: 'new_leads', 
-      name: 'Novos Leads', 
-      count: 0, 
-      color: '#8c52ff', 
-      icon: <PhoneIcon /> 
+    {
+      id: 'new_leads',
+      name: 'Novos Leads',
+      count: 0,
+      color: '#8c52ff',
+      icon: <PhoneIcon />,
     },
     {
       id: 'first_contact',

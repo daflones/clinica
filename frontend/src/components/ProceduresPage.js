@@ -115,18 +115,15 @@ const ProceduresPage = () => {
   };
 
   // Função para excluir procedimento
-  const handleDeleteProcedure = async (id) => {
+  const handleDeleteProcedure = async id => {
     if (window.confirm('Tem certeza que deseja excluir este procedimento?')) {
       try {
-        const { error } = await supabase
-          .from('procedures')
-          .delete()
-          .eq('id', id);
+        const { error } = await supabase.from('procedures').delete().eq('id', id);
 
         if (error) throw error;
 
         // Atualizar a lista de procedimentos
-        setProcedures(procedures.filter((p) => p.id !== id));
+        setProcedures(procedures.filter(p => p.id !== id));
 
         setSnackbar({
           open: true,
@@ -145,9 +142,9 @@ const ProceduresPage = () => {
   };
 
   // Função para atualizar o formulário
-  const handleInputChange = (e) => {
+  const handleInputChange = e => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value,
     }));
@@ -183,8 +180,8 @@ const ProceduresPage = () => {
         if (error) throw error;
 
         // Atualizar a lista de procedimentos
-        const updatedProcedures = procedures.map((p) =>
-          p.id === currentProcedure.id ? { ...p, ...formData } : p,
+        const updatedProcedures = procedures.map(p =>
+          p.id === currentProcedure.id ? { ...p, ...formData } : p
         );
         setProcedures(updatedProcedures);
 
@@ -463,7 +460,11 @@ const ProceduresPage = () => {
             }}
             startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
           >
-            {isSubmitting ? 'Salvando...' : currentProcedure ? 'Salvar Alterações' : 'Adicionar Procedimento'}
+            {isSubmitting
+              ? 'Salvando...'
+              : currentProcedure
+              ? 'Salvar Alterações'
+              : 'Adicionar Procedimento'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -475,8 +476,8 @@ const ProceduresPage = () => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
           variant="filled"
           sx={{ width: '100%' }}

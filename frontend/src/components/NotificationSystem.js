@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Snackbar,
-  Alert,
-  Slide,
-  IconButton,
-  Typography,
-  Box,
-} from '@mui/material';
+import { Snackbar, Alert, Slide, IconButton, Typography, Box } from '@mui/material';
 import {
   Close as CloseIcon,
   CheckCircle,
@@ -81,12 +74,7 @@ const NotificationSystem = ({
         }}
         icon={iconMap[severity]}
         action={
-          <IconButton
-            size="small"
-            aria-label="close"
-            color="inherit"
-            onClick={onClose}
-          >
+          <IconButton size="small" aria-label="close" color="inherit" onClick={onClose}>
             <CloseIcon fontSize="small" />
           </IconButton>
         }
