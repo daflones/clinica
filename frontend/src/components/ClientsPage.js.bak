@@ -1,0 +1,524 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Box, Typography, Button, Card, Paper, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TextField, IconButton, Chip, Tooltip, Avatar,
+  Divider, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, Select, FormControl, InputLabel,
+  InputAdornment, CircularProgress, Grid, Snackbar, Alert
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Search as SearchIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon,
+  WhatsApp as WhatsAppIcon,
+  FilterList as FilterListIcon,
+  Refresh as RefreshIcon
+} from '@mui/icons-material';
+import { useSupabase } from '../contexts/SupabaseContext';
+import NotificationSystem from './NotificationSystem';
+
+const ClientsPage = () => {
+  const { supabase } = useSupabase();
+  const [tabValue, setTabValue] = useState(0);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  const [newClient, setNewClient] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    status: 'lead', // Default status
+    notes: '',
+    created_at: new Date().toISOString()
+  });
+
+  useEffect(() => {
+    fetchClients();
+  }, [tabValue]);
+
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        setSnackbar({
+          open: true,
+          message: `Erro ao carregar clientes: ${error.message}`,
+          severity: 'error'
+        });
+        throw error;
+      }
+      
+      setClients(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar clientes:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateClient = async () => {
+    if (!newClient.name || !newClient.phone) {
+      setSnackbar({
+        open: true,
+        message: 'Nome e telefone são obrigatórios',
+        severity: 'warning'
+      });
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([newClient])
+        .select();
+        
+      if (error) throw error;
+      
+      setClients([data[0], ...clients]);
+      setSnackbar({
+        open: true,
+        message: 'Cliente criado com sucesso!',
+        severity: 'success'
+      });
+      
+      setNewClient({
+        name: '',
+        email: '',
+        phone: '',
+        status: 'lead',
+        notes: '',
+        created_at: new Date().toISOString()
+      });
+      
+      setOpenDialog(false);
+    } catch (error) {
+      console.error('Erro ao criar cliente:', error);
+      setSnackbar({
+        open: true,
+        message: `Erro ao criar cliente: ${error.message}`,
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteClient = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setClients(clients.filter(client => client.id !== id));
+      setSnackbar({
+        open: true,
+        message: 'Cliente excluído com sucesso!',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Erro ao excluir cliente:', error);
+      setSnackbar({
+        open: true,
+        message: `Erro ao excluir cliente: ${error.message}`,
+        severity: 'error'
+      });
+    }
+  };
+
+  const filteredClients = clients.filter(client => {
+    const searchTermLower = searchTerm.toLowerCase();
+    return (
+      client.name?.toLowerCase().includes(searchTermLower) ||
+      client.email?.toLowerCase().includes(searchTermLower) ||
+      client.phone?.includes(searchTerm)
+    );
+  });
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setNewClient({
+      name: '',
+      email: '',
+      phone: '',
+      status: 'lead',
+      notes: '',
+      created_at: new Date().toISOString()
+    });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" fontWeight="bold" gutterBottom>
+            Clientes
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Gerencie seus clientes e leads
+          </Typography>
+        </Box>
+        
+        <Button 
+          variant="contained" 
+          startIcon={<AddIcon />}
+          onClick={() => setOpenDialog(true)}
+          sx={{ 
+            borderRadius: 2,
+            px: 3,
+            py: 1,
+            background: 'linear-gradient(45deg, #8c52ff 0%, #e542fe 100%)',
+            '&:hover': {
+              background: 'linear-gradient(45deg, #7b46e3 0%, #d93be3 100%)',
+            }
+          }}
+        >
+          Novo Cliente
+        </Button>
+      </Box>
+      
+      <Card sx={{ mb: 3, p: 2, borderRadius: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Buscar clientes"
+              variant="outlined"
+              size="small"
+              fullWidth
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={6} md={3}>
+            <Button 
+              variant="outlined" 
+              startIcon={<FilterListIcon />}
+              fullWidth
+              sx={{ borderRadius: 2 }}
+            >
+              Filtrar
+            </Button>
+          </Grid>
+          <Grid item xs={6} md={3}>
+            <Button 
+              variant="outlined" 
+              startIcon={<RefreshIcon />}
+              onClick={fetchClients}
+              fullWidth
+              sx={{ borderRadius: 2 }}
+            >
+              Atualizar
+            </Button>
+          </Grid>
+        </Grid>
+      </Card>
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+          <CircularProgress color="primary" />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Cliente</TableCell>
+                <TableCell>Contato</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Ações</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {clients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      Nenhum cliente encontrado
+                    </Typography>
+                    <Button 
+                      variant="outlined" 
+                      size="small"
+                      onClick={() => setOpenDialog(true)}
+                      sx={{ mt: 1, borderRadius: 2 }}
+                    >
+                      Adicionar Novo
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredClients
+                  .map((client) => (
+                    <TableRow key={client.id}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
+                            {getInitials(client.name)}
+                          </Avatar>
+                          <Box sx={{ ml: 2 }}>
+                            <Typography variant="body1" fontWeight="medium">
+                              {client.name}
+                            </Typography>
+                            {client.notes && (
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 200, display: 'block' }}>
+                                {client.notes}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                            <EmailIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary', fontSize: 16 }} />
+                            <Typography variant="body2">{client.email || 'Não informado'}</Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <PhoneIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary', fontSize: 16 }} />
+                            <Typography variant="body2">{client.phone || 'Não informado'}</Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={client.status === 'lead' ? 'Lead' : 
+                                client.status === 'active' ? 'Ativo' : 
+                                client.status === 'inactive' ? 'Inativo' : 'Outro'}
+                          size="small"
+                          sx={{
+                            bgcolor: client.status === 'lead' ? 'rgba(255, 152, 0, 0.1)' : 
+                                    client.status === 'active' ? 'rgba(76, 175, 80, 0.1)' : 
+                                    client.status === 'inactive' ? 'rgba(244, 67, 54, 0.1)' : 'rgba(158, 158, 158, 0.1)',
+                            color: client.status === 'lead' ? 'warning.main' : 
+                                   client.status === 'active' ? 'success.main' : 
+                                   client.status === 'inactive' ? 'error.main' : 'text.secondary',
+                            fontWeight: 'medium',
+                            borderRadius: '4px'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex' }}>
+                          <Tooltip title="WhatsApp">
+                            <IconButton size="small" sx={{ color: '#25D366' }}>
+                              <WhatsAppIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Editar">
+                            <IconButton size="small" sx={{ color: 'primary.main' }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Excluir">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => handleDeleteClient(client.id)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3 }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h5" fontWeight="bold">Novo Cliente</Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                label="Nome completo"
+                fullWidth
+                variant="outlined"
+                value={newClient.name}
+                onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                required
+                placeholder="Ex: Maria Silva"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                variant="outlined"
+                value={newClient.email}
+                onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                placeholder="Ex: maria@exemplo.com"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Telefone"
+                fullWidth
+                variant="outlined"
+                value={newClient.phone}
+                onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                required
+                placeholder="Ex: (11) 98765-4321"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth variant="outlined">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={newClient.status}
+                  label="Status"
+                  onChange={(e) => setNewClient({ ...newClient, status: e.target.value })}
+                >
+                  <MenuItem value="lead">Lead (Prospecto)</MenuItem>
+                  <MenuItem value="active">Cliente Ativo</MenuItem>
+                  <MenuItem value="inactive">Cliente Inativo</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Observações"
+                fullWidth
+                multiline
+                rows={4}
+                variant="outlined"
+                value={newClient.notes}
+                onChange={(e) => setNewClient({ ...newClient, notes: e.target.value })}
+                placeholder="Informações adicionais sobre o cliente..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={handleCloseDialog} 
+            variant="outlined"
+            sx={{ borderRadius: 2 }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleCreateClient} 
+            variant="contained"
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              background: 'linear-gradient(45deg, #8c52ff 0%, #e542fe 100%)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #7b46e3 0%, #d93be3 100%)',
+              }
+            }}
+          >
+            Salvar Cliente
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <NotificationSystem
+        open={snackbar.open}
+        message={snackbar.message}
+        severity={snackbar.severity}
+        onClose={handleCloseSnackbar}
+      />
+              })
+            )}
+          </TableBody>
+        </Table>
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Mostrando {filteredClients.length} de {filteredClients.length} resultados
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              disabled 
+              variant="outlined" 
+              size="small"
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none'
+              }}
+            >
+              Anterior
+            </Button>
+            <Button 
+              variant="contained" 
+              size="small"
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none',
+                bgcolor: 'primary.main'
+              }}
+            >
+              1
+            </Button>
+            <Button 
+              disabled 
+              variant="outlined" 
+              size="small"
+              sx={{ 
+                borderRadius: 2,
+                textTransform: 'none'
+              }}
+            >
+              Próximo
+            </Button>
+          </Box>
+        </Box>
+      </TableContainer>
+    </Box>
+  );
+};
+
+export default ClientsPage;

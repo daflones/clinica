@@ -1,0 +1,255 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai dados relevantes da mensagem do WhatsApp\nconst data = $input.item.json;\n\n// Verifica a estrutura da mensagem para determinar de onde extrair os dados\nconst from = data.from || data.sender || (data.message ? data.message.from : null) || '';\nconst body = data.body || (data.message ? data.message.body : null) || '';\nconst timestamp = data.timestamp || new Date().toISOString();\n\n// Extrai o nome do contato se disponível\nconst contactName = data.contact?.name || data.sender_name || '';\n\n// Formata o número de telefone (remove o sufixo @c.us se presente)\nconst telefone = from.replace('@c.us', '');\n\nreturn {\n  json: {\n    telefone,\n    mensagem: body,\n    nome: contactName,\n    timestamp,\n    data_raw: data, // Mantém os dados brutos para processamento adicional se necessário\n  }\n};"
+      },
+      "name": "Extrair Dados",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatGptVersion": "gpt-4",
+        "prompt": "=Analise a seguinte mensagem de WhatsApp e extraia informações relevantes para um lead. Se parecer ser um lead potencial, identifique o nome, interesse no produto/serviço, e outras informações relevantes. Se não for um lead, indique isso.\n\nMensagem: {{$node[\"Extrair Dados\"].json[\"mensagem\"]}}\n\nForneça a resposta em JSON com os seguintes campos:\n{\n  \"e_lead\": true/false,\n  \"nome\": \"nome da pessoa\" (ou null se não identificado),\n  \"interesse\": \"interesse identificado\" (ou null se não identificado),\n  \"observacoes\": \"outras informações relevantes\",\n  \"email\": \"email identificado\" (ou null se não identificado)\n}",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "name": "Analisar com IA",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"e_lead\"]}}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "name": "É Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "credentials": {
+          "name": "Supabase"
+        },
+        "table": "leads",
+        "additionalFields": {}
+      },
+      "name": "Inserir no Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://evolution-api:8080/api/messages/send",
+        "sendQuery": false,
+        "specifyBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{$node[\"Extrair Dados\"].json[\"telefone\"]}}"
+            },
+            {
+              "name": "options",
+              "parameters": [
+                {
+                  "name": "delay",
+                  "value": 1200
+                }
+              ]
+            },
+            {
+              "name": "textMessage",
+              "parameters": [
+                {
+                  "name": "text",
+                  "value": "=Olá{{if $node[\"Analisar com IA\"].json[\"nome\"] }} {{$node[\"Analisar com IA\"].json[\"nome\"]}}{{else}}{{end}}! Obrigado pelo contato. Identificamos seu interesse e um de nossos consultores entrará em contato em breve para fornecer mais informações."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "name": "Responder Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://evolution-api:8080/api/messages/send",
+        "sendQuery": false,
+        "specifyBody": true,
+        "jsonParameters": true,
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{$node[\"Extrair Dados\"].json[\"telefone\"]}}"
+            },
+            {
+              "name": "options",
+              "parameters": [
+                {
+                  "name": "delay",
+                  "value": 1200
+                }
+              ]
+            },
+            {
+              "name": "textMessage",
+              "parameters": [
+                {
+                  "name": "text",
+                  "value": "Olá! Obrigado pela sua mensagem. Se precisar de atendimento específico, por favor nos informe como podemos ajudar."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "name": "Resposta Genérica",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1050,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Preparar os dados para inserção no Supabase\nconst iaAnalise = $node[\"Analisar com IA\"].json;\nconst dadosExtraidos = $node[\"Extrair Dados\"].json;\n\n// Criar o objeto lead com os dados combinados\nreturn {
+  json: {
+    nome: iaAnalise.nome || 'Cliente WhatsApp',\n    telefone: dadosExtraidos.telefone,\n    email: iaAnalise.email || null,\n    status: 'novo',\n    fonte: 'whatsapp',\n    observacoes: `Interesse: ${iaAnalise.interesse || 'Não identificado'}\n\nMensagem original: ${dadosExtraidos.mensagem}\n\nObservações da IA: ${iaAnalise.observacoes || 'Nenhuma observação adicional'}`\n  }\n};"
+      },
+      "name": "Preparar Lead",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados": {
+      "main": [
+        [
+          {
+            "node": "Analisar com IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisar com IA": {
+      "main": [
+        [
+          {
+            "node": "É Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É Lead?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta Genérica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Lead": {
+      "main": [
+        [
+          {
+            "node": "Inserir no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Responder Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

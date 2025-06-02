@@ -1,0 +1,264 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Box, Typography, Card, CardContent, Grid, CircularProgress, Avatar,
+  Divider, Button, IconButton, List, ListItem, ListItemText, ListItemAvatar,
+  Chip, Paper, TableContainer, Table, TableHead, TableBody, TableRow, TableCell
+} from '@mui/material';
+import {
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Event as EventIcon,
+  Person as PersonIcon,
+  CheckCircle as CheckCircleIcon,
+  AttachMoney as AttachMoneyIcon,
+  CalendarToday as CalendarTodayIcon,
+  WhatsApp as WhatsAppIcon,
+  Refresh as RefreshIcon,
+  Search as SearchIcon,
+  Phone as PhoneIcon,
+  Speed as SpeedIcon
+} from '@mui/icons-material';
+import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, BarElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { useSupabase } from '../contexts/SupabaseContext';
+import NotificationSystem from './NotificationSystem';
+
+// Registrar componentes Chart.js
+ChartJS.register(
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  BarElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+import { useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Typography,
+  Paper,
+  Table,
+} from '@mui/material';
+import { 
+  TrendingUp as TrendingUpIcon, 
+  TrendingDown as TrendingDownIcon,
+  Event as EventIcon,
+  Person as PersonIcon,
+  CheckCircle as CheckCircleIcon,
+  AttachMoney as AttachMoneyIcon,
+  CalendarToday as CalendarTodayIcon,
+  WhatsApp as WhatsAppIcon,
+  Refresh as RefreshIcon,
+  Speed as SpeedIcon
+} from '@mui/icons-material';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Chart, ArcElement, CategoryScale, LinearScale, PointElement, BarElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { useSupabase } from '../contexts/SupabaseContext';
+import NotificationSystem from './NotificationSystem';
+
+const statusColors = {
+  'novo': 'primary',
+  'em_andamento': 'warning',
+  'convertido': 'success',
+  'perdido': 'error'
+};
+
+const statusLabels = {
+  'novo': 'Novo',
+  'em_andamento': 'Em Andamento',
+  'convertido': 'Convertido',
+  'perdido': 'Perdido'
+};
+
+const Dashboard = () => {
+  const { leads, loading, refreshLeads, user } = useSupabase();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredLeads, setFilteredLeads] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    // Filtrar leads baseado no termo de busca
+    if (leads) {
+      const filtered = leads.filter(lead => 
+        lead.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.telefone?.includes(searchTerm) ||
+        lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredLeads(filtered);
+    }
+  }, [leads, searchTerm]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleLeadClick = (id) => {
+    navigate(`/lead/${id}`);
+  };
+
+  const getStatusCounts = () => {
+    if (!leads) return {};
+    return leads.reduce((acc, lead) => {
+      const status = lead.status || 'novo';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+  };
+
+  const statusCounts = getStatusCounts();
+
+  return (
+    <Container>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Dashboard de Leads
+      </Typography>
+
+      {/* Cards de Estatísticas */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Total de Leads
+              </Typography>
+              <Typography variant="h5" component="h2">
+                {leads ? leads.length : 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Novos
+              </Typography>
+              <Typography variant="h5" component="h2">
+                {statusCounts['novo'] || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Em Andamento
+              </Typography>
+              <Typography variant="h5" component="h2">
+                {statusCounts['em_andamento'] || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Convertidos
+              </Typography>
+              <Typography variant="h5" component="h2">
+                {statusCounts['convertido'] || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Barra de Pesquisa */}
+      <Box sx={{ mb: 3 }}>
+        <TextField
+          fullWidth
+          label="Buscar leads"
+          variant="outlined"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+
+      {/* Tabela de Leads */}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Nome</strong></TableCell>
+                <TableCell><strong>Telefone</strong></TableCell>
+                <TableCell><strong>Email</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell><strong>Fonte</strong></TableCell>
+                <TableCell><strong>Data</strong></TableCell>
+                <TableCell><strong>Ações</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredLeads.length > 0 ? (
+                filteredLeads.map((lead) => (
+                  <TableRow key={lead.id} hover onClick={() => handleLeadClick(lead.id)}>
+                    <TableCell>{lead.nome || 'N/A'}</TableCell>
+                    <TableCell>{lead.telefone || 'N/A'}</TableCell>
+                    <TableCell>{lead.email || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={statusLabels[lead.status] || 'Novo'} 
+                        color={statusColors[lead.status] || 'primary'} 
+                        size="small" 
+                      />
+                    </TableCell>
+                    <TableCell>{lead.fonte || 'WhatsApp'}</TableCell>
+                    <TableCell>
+                      {lead.created_at 
+                        ? new Date(lead.created_at).toLocaleDateString() 
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="contained" 
+                        size="small" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLeadClick(lead.id);
+                        }}
+                      >
+                        Ver
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    Nenhum lead encontrado
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Container>
+  );
+};
+
+export default Dashboard;
